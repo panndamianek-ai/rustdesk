@@ -32,7 +32,11 @@ class SettingsPage extends StatefulWidget implements PageShape {
   final icon = Icon(Icons.settings);
 
   @override
-  final appBarActions = bind.isDisableSettings() ? [] : [ScanButton()];
+  // The QR scanner imports server settings, so hide it when they are hidden.
+  final appBarActions = bind.isDisableSettings() ||
+          bind.mainGetBuildinOption(key: kOptionHideServerSetting) == 'Y'
+      ? []
+      : [ScanButton()];
 
   @override
   State<SettingsPage> createState() => _SettingsState();

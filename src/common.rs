@@ -64,6 +64,10 @@ pub const DEFAULT_KEEP_ALIVE: i32 = 60_000;
 
 // Own build (rd.paneech.xyz): updates come from our own fork's builds, never from rustdesk.com.
 pub const DISABLE_SOFTWARE_UPDATE: bool = true;
+// Ignore custom.txt and server-in-exe-name; use apply_own_build_settings() instead.
+pub const DISABLE_EXTERNAL_CUSTOM_CONFIG: bool = true;
+// A permanent password (unattended access) only works when 2FA is set up.
+pub const REQUIRE_2FA_FOR_PERMANENT_PASSWORD: bool = true;
 
 const MIN_VER_MULTI_UI_SESSION: &str = "1.2.4";
 
@@ -2514,7 +2518,40 @@ pub fn rustdesk_interval(i: Interval) -> ThrottledInterval {
     ThrottledInterval::new(i)
 }
 
+// Settings fixed at build time for our own build. They replace custom.txt,
+// which RustDesk signs with its own key, so nobody else can change them.
+fn apply_own_build_settings() {
+    {
+        let mut builtin = config::BUILTIN_SETTINGS.write().unwrap();
+        for (k, v) in [
+            // Only the built-in server (rd.paneech.xyz): no server fields, QR or clipboard import.
+            ("hide-server-settings", "Y"),
+            ("allow-deep-link-server-settings", "N"),
+            ("allow-deep-link-password", "N"),
+            // No account server: never send logins or device info to admin.rustdesk.com.
+            ("register-device", "N"),
+        ] {
+            builtin.insert(k.to_owned(), v.to_owned());
+        }
+    }
+    {
+        let mut hard = config::HARD_SETTINGS.write().unwrap();
+        hard.insert("disable-account".to_owned(), "Y".to_owned());
+        hard.insert("disable-ab".to_owned(), "Y".to_owned());
+    }
+    // Phones and tablets: every incoming connection must be accepted on the device.
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    config::OVERWRITE_SETTINGS
+        .write()
+        .unwrap()
+        .insert(keys::OPTION_APPROVE_MODE.to_owned(), "click".to_owned());
+}
+
 pub fn load_custom_client() {
+    if DISABLE_EXTERNAL_CUSTOM_CONFIG {
+        apply_own_build_settings();
+        return;
+    }
     #[cfg(debug_assertions)]
     if let Ok(data) = std::fs::read_to_string("./custom.txt") {
         read_custom_client(data.trim());
@@ -2613,6 +2650,11 @@ pub fn get_dst_align_rgba() -> usize {
 }
 
 pub fn read_custom_client(config: &str) {
+    if DISABLE_EXTERNAL_CUSTOM_CONFIG {
+        log::warn!("Ignoring custom client config: disabled in this build");
+        apply_own_build_settings();
+        return;
+    }
     let Ok(data) = decode64(config) else {
         log::error!("Failed to decode custom client config");
         return;
