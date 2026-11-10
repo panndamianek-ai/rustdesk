@@ -1,0 +1,20 @@
+name: Custom Build (own server)
+
+# Builds all platforms from this branch, with the server and key from the
+# patched libs/hbb_common submodule, and uploads them to a release.
+on:
+  workflow_dispatch:
+    inputs:
+      upload-tag:
+        description: "Release tag to upload the installers to"
+        type: string
+        default: "custom-1.5.3"
+
+jobs:
+  run-custom-build:
+    uses: ./.github/workflows/flutter-build.yml
+    secrets: inherit
+    with:
+      upload-artifact: true
+      upload-tag: ${{ inputs.upload-tag }}
+      publish-update-metadata: false
