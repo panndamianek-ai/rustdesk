@@ -62,6 +62,9 @@ pub const TIMER_OUT: Duration = Duration::from_secs(1);
 pub(crate) const API_LOG_INTERVAL: Duration = Duration::from_secs(600);
 pub const DEFAULT_KEEP_ALIVE: i32 = 60_000;
 
+// Own build (rd.paneech.xyz): updates come from our own fork's builds, never from rustdesk.com.
+pub const DISABLE_SOFTWARE_UPDATE: bool = true;
+
 const MIN_VER_MULTI_UI_SESSION: &str = "1.2.4";
 
 pub mod input {
@@ -1058,7 +1061,8 @@ pub fn is_modifier(evt: &KeyEvent) -> bool {
 }
 
 pub fn check_software_update() {
-    if is_custom_client() {
+    // Own build: never ask api.rustdesk.com for updates (it would also send a device fingerprint).
+    if DISABLE_SOFTWARE_UPDATE || is_custom_client() {
         return;
     }
     let opt = LocalConfig::get_option(keys::OPTION_ENABLE_CHECK_UPDATE);
@@ -1177,6 +1181,10 @@ fn process_software_update_check_response(bytes: Bytes) -> ResultType<()> {
 // Because the url is always `https://api.rustdesk.com/version/latest`.
 #[tokio::main(flavor = "current_thread")]
 pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
+    if DISABLE_SOFTWARE_UPDATE {
+        clear_software_update_url();
+        bail!("Software update is disabled in this build");
+    }
     let (request, url) =
         hbb_common::version_check_request(hbb_common::VER_TYPE_RUSTDESK_CLIENT.to_string());
     let proxy_conf = Config::get_socks();
