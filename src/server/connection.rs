@@ -2632,6 +2632,14 @@ impl Connection {
                 return true;
             }
         }
+        if (password::permanent_enabled() || allow_permanent_password)
+            && crate::common::REQUIRE_2FA_FOR_PERMANENT_PASSWORD
+            && crate::auth_2fa::get_2fa(None).is_none()
+        {
+            // Own build: unattended access with a permanent password needs 2FA turned on.
+            log::warn!("Permanent password rejected: 2FA is not enabled on this device");
+            return false;
+        }
         if password::permanent_enabled() || allow_permanent_password {
             let print_fallback = || {
                 if allow_permanent_password && !password::permanent_enabled() {
