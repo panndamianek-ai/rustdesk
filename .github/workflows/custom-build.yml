@@ -10,6 +10,9 @@ on:
         type: string
         default: "custom-1.5.3"
 
+permissions:
+  contents: write
+
 jobs:
   run-custom-build:
     uses: ./.github/workflows/flutter-build.yml
